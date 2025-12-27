@@ -151,21 +151,36 @@ SIMPLE_JWT = {
 
 # CORS (THIS FIXES YOUR CURRENT ERROR)
 
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS",
-    default=(
-        "http://localhost:3000,"
-        "http://localhost:5173,"
-        "http://127.0.0.1:3000,"
-        "http://127.0.0.1:5173,"
-        "https://frontend-mbf2.onrender.com"
-    ),
-    cast=Csv(),
-)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "https://frontend-mbf2.onrender.com",
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://frontend-mbf2.onrender.com",
