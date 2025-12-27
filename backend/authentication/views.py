@@ -30,7 +30,9 @@ def send_otp_email(email, otp):
 
     try:
         # Check if email is configured
-        if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        # Check for None or empty string explicitly
+        if settings.EMAIL_HOST_USER is None or settings.EMAIL_HOST_USER == "" or \
+           settings.EMAIL_HOST_PASSWORD is None or settings.EMAIL_HOST_PASSWORD == "":
             error_msg = "Email service not configured. Please contact administrator."
             print(f"EMAIL CONFIG ERROR: {error_msg}")
             return False, error_msg
@@ -83,9 +85,10 @@ class SignupView(APIView):
             }
             
             # Only include OTP in DEBUG mode (development)
+            # Use separate field to avoid logging sensitive data
             if settings.DEBUG:
                 response_data["otp"] = otp
-                response_data["warning"] += f" (DEBUG: Your OTP is {otp})"
+                response_data["debug_info"] = f"Your OTP is {otp}"
             
             return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -202,9 +205,10 @@ class ResendOTPView(APIView):
             }
             
             # Only include OTP in DEBUG mode (development)
+            # Use separate field to avoid logging sensitive data
             if settings.DEBUG:
                 response_data["otp"] = otp_instance.otp
-                response_data["warning"] += f" (DEBUG: Your OTP is {otp_instance.otp})"
+                response_data["debug_info"] = f"Your OTP is {otp_instance.otp}"
             
             return Response(response_data, status=status.HTTP_200_OK)
 
