@@ -182,8 +182,14 @@ CORS_ALLOW_METHODS = [
     "PUT",
 ]
 
+CORS_EXPOSE_HEADERS = [
+    "Content-Type",
+    "X-CSRFToken",
+]
+
 CSRF_TRUSTED_ORIGINS = [
     "https://frontend-mbf2.onrender.com",
+    "https://backend-django-cnyh.onrender.com",
 ]
 
 # EMAIL (OTP)

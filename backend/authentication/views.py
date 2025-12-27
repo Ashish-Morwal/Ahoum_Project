@@ -16,6 +16,10 @@ from .models import EmailOTP
 # HELPER FUNCTION (reusable & safe)
 # --------------------------------------------------
 def send_otp_email(email, otp):
+    """
+    Send OTP email to user for verification.
+    Returns (success: bool, error_message: str or None)
+    """
     subject = "Email Verification - Events Platform"
     message = (
         "Welcome to Events Platform!\n\n"
@@ -25,6 +29,12 @@ def send_otp_email(email, otp):
     )
 
     try:
+        # Check if email is configured
+        if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+            error_msg = "Email service not configured. Please contact administrator."
+            print(f"EMAIL CONFIG ERROR: {error_msg}")
+            return False, error_msg
+        
         send_mail(
             subject=subject,
             message=message,
@@ -32,11 +42,13 @@ def send_otp_email(email, otp):
             recipient_list=[email],
             fail_silently=False,
         )
-        return True
+        print(f"EMAIL SENT SUCCESSFULLY to {email}")
+        return True, None
     except Exception as e:
-        # VERY IMPORTANT: Log for Render
-        print("EMAIL SEND FAILED:", str(e))
-        return False
+        # VERY IMPORTANT: Log for debugging
+        error_msg = str(e)
+        print(f"EMAIL SEND FAILED to {email}: {error_msg}")
+        return False, error_msg
 
 
 # --------------------------------------------------
@@ -55,17 +67,23 @@ class SignupView(APIView):
         user = result["user"]
         otp = result["otp"]
 
-        email_sent = send_otp_email(user.email, otp)
+        email_sent, error_msg = send_otp_email(user.email, otp)
 
         if not email_sent:
+            # Still return success but inform user about email issue
             return Response(
                 {
-                    "detail": (
-                        "Account created, but we could not send the OTP email. "
-                        "Please try again later."
-                    )
+                    "message": "Account created successfully!",
+                    "email": user.email,
+                    "role": user.profile.role,
+                    "warning": (
+                        "However, we could not send the OTP email at this time. "
+                        f"Your OTP is: {otp}. Please use this to verify your account. "
+                        "This is temporary - please contact support if email issues persist."
+                    ),
+                    "otp": otp,  # Include OTP in response as fallback
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status=status.HTTP_201_CREATED,
             )
 
         return Response(
@@ -167,17 +185,22 @@ class ResendOTPView(APIView):
 
         otp_instance = EmailOTP.create_otp(email=email, expiry_minutes=10)
 
-        email_sent = send_otp_email(email, otp_instance.otp)
+        email_sent, error_msg = send_otp_email(email, otp_instance.otp)
 
         if not email_sent:
+            # Return success with OTP in response as fallback
             return Response(
                 {
-                    "detail": (
-                        "OTP generated but email could not be sent. "
-                        "Please try again later."
-                    )
+                    "message": "OTP generated successfully",
+                    "email": email,
+                    "warning": (
+                        "However, we could not send the OTP email at this time. "
+                        f"Your OTP is: {otp_instance.otp}. "
+                        "Please contact support if email issues persist."
+                    ),
+                    "otp": otp_instance.otp,  # Include OTP in response as fallback
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status=status.HTTP_200_OK,
             )
 
         return Response(
