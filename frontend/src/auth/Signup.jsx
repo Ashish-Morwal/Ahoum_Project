@@ -1,17 +1,17 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import axiosInstance from '../api/axios';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axiosInstance from "../api/axios";
 
 const Signup = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    role: 'seeker',
+    email: "",
+    password: "",
+    role: "seeker",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Handle input changes
   const handleChange = (e) => {
@@ -20,25 +20,27 @@ const Signup = () => {
       ...prev,
       [name]: value,
     }));
-    setError(''); // Clear error on input change
+    setError(""); // Clear error on input change
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setSuccessMessage('');
+    setError("");
+    setSuccessMessage("");
 
     try {
-      const response = await axiosInstance.post('/auth/signup/', formData);
+      const response = await axiosInstance.post("/api/auth/signup/", formData);
 
       // Show success message
-      setSuccessMessage(response.data.message || 'Signup successful! Check your email for OTP.');
+      setSuccessMessage(
+        response.data.message || "Signup successful! Check your email for OTP."
+      );
 
       // Redirect to OTP verification page after 1.5 seconds
       setTimeout(() => {
-        navigate('/verify-otp', {
+        navigate("/verify-otp", {
           state: { email: formData.email },
         });
       }, 1500);
@@ -46,7 +48,7 @@ const Signup = () => {
       // Handle API errors
       if (err.response?.data) {
         const errorData = err.response.data;
-        
+
         // Handle validation errors
         if (errorData.email) {
           setError(errorData.email[0] || errorData.email);
@@ -55,10 +57,10 @@ const Signup = () => {
         } else if (errorData.detail) {
           setError(errorData.detail);
         } else {
-          setError('Signup failed. Please try again.');
+          setError("Signup failed. Please try again.");
         }
       } else {
-        setError('Network error. Please check your connection and try again.');
+        setError("Network error. Please check your connection and try again.");
       }
     } finally {
       setLoading(false);
@@ -73,9 +75,7 @@ const Signup = () => {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Create Account
           </h1>
-          <p className="text-gray-600">
-            Join Events Platform today
-          </p>
+          <p className="text-gray-600">Join Events Platform today</p>
         </div>
 
         {/* Success Message */}
@@ -135,9 +135,7 @@ const Signup = () => {
               placeholder="••••••••"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-gray-500">
-              At least 8 characters
-            </p>
+            <p className="mt-1 text-xs text-gray-500">At least 8 characters</p>
           </div>
 
           {/* Role Selection */}
@@ -158,7 +156,9 @@ const Signup = () => {
               disabled={loading}
             >
               <option value="seeker">Find and join events (Seeker)</option>
-              <option value="facilitator">Create and manage events (Facilitator)</option>
+              <option value="facilitator">
+                Create and manage events (Facilitator)
+              </option>
             </select>
           </div>
 
@@ -168,8 +168,8 @@ const Signup = () => {
             disabled={loading}
             className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
               loading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 active:scale-95"
             }`}
           >
             {loading ? (
@@ -197,7 +197,7 @@ const Signup = () => {
                 Creating Account...
               </span>
             ) : (
-              'Sign Up'
+              "Sign Up"
             )}
           </button>
         </form>
@@ -205,7 +205,7 @@ const Signup = () => {
         {/* Login Link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <Link
               to="/login"
               className="text-blue-600 hover:text-blue-700 font-semibold"

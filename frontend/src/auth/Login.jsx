@@ -1,27 +1,27 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import axiosInstance from '../api/axios';
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../api/axios";
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
-  
-  const emailFromState = location.state?.email || '';
+
+  const emailFromState = location.state?.email || "";
   const verifiedFromState = location.state?.verified || false;
 
   const [formData, setFormData] = useState({
     email: emailFromState,
-    password: '',
+    password: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate('/events');
+      navigate("/events");
     }
   }, [isAuthenticated, navigate]);
 
@@ -32,17 +32,17 @@ const Login = () => {
       ...prev,
       [name]: value,
     }));
-    setError(''); // Clear error on input change
+    setError(""); // Clear error on input change
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const response = await axiosInstance.post('/auth/login/', formData);
+      const response = await axiosInstance.post("/api/auth/login/", formData);
 
       const { user, tokens } = response.data;
 
@@ -50,18 +50,18 @@ const Login = () => {
       login(user, tokens);
 
       // Redirect based on role
-      if (user.role === 'seeker') {
-        navigate('/events');
-      } else if (user.role === 'facilitator') {
-        navigate('/my-events');
+      if (user.role === "seeker") {
+        navigate("/events");
+      } else if (user.role === "facilitator") {
+        navigate("/my-events");
       } else {
-        navigate('/');
+        navigate("/");
       }
     } catch (err) {
       // Handle API errors
       if (err.response?.data) {
         const errorData = err.response.data;
-        
+
         // Handle validation errors
         if (errorData.email) {
           setError(errorData.email[0] || errorData.email);
@@ -72,10 +72,10 @@ const Login = () => {
         } else if (errorData.non_field_errors) {
           setError(errorData.non_field_errors[0] || errorData.non_field_errors);
         } else {
-          setError('Login failed. Please check your credentials.');
+          setError("Login failed. Please check your credentials.");
         }
       } else {
-        setError('Network error. Please check your connection and try again.');
+        setError("Network error. Please check your connection and try again.");
       }
     } finally {
       setLoading(false);
@@ -90,15 +90,15 @@ const Login = () => {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Welcome Back
           </h1>
-          <p className="text-gray-600">
-            Sign in to your account
-          </p>
+          <p className="text-gray-600">Sign in to your account</p>
         </div>
 
         {/* Verification Success Message */}
         {verifiedFromState && (
           <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-            <p className="text-sm">✓ Email verified successfully! You can now login.</p>
+            <p className="text-sm">
+              ✓ Email verified successfully! You can now login.
+            </p>
           </div>
         )}
 
@@ -161,8 +161,8 @@ const Login = () => {
             disabled={loading}
             className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
               loading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-700 active:scale-95'
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-purple-600 hover:bg-purple-700 active:scale-95"
             }`}
           >
             {loading ? (
@@ -190,7 +190,7 @@ const Login = () => {
                 Signing In...
               </span>
             ) : (
-              'Login'
+              "Login"
             )}
           </button>
         </form>
@@ -198,7 +198,7 @@ const Login = () => {
         {/* Signup Link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link
               to="/signup"
               className="text-purple-600 hover:text-purple-700 font-semibold"

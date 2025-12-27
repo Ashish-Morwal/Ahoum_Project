@@ -1,29 +1,29 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import axiosInstance from '../api/axios';
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import axiosInstance from "../api/axios";
 
 const VerifyOTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const emailFromState = location.state?.email || '';
+  const emailFromState = location.state?.email || "";
 
   const [formData, setFormData] = useState({
     email: emailFromState,
-    otp: '',
+    otp: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [resendLoading, setResendLoading] = useState(false);
-  const [resendMessage, setResendMessage] = useState('');
+  const [resendMessage, setResendMessage] = useState("");
 
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Only allow digits for OTP and limit to 6 characters
-    if (name === 'otp') {
-      const numericValue = value.replace(/\D/g, '').slice(0, 6);
+    if (name === "otp") {
+      const numericValue = value.replace(/\D/g, "").slice(0, 6);
       setFormData((prev) => ({
         ...prev,
         [name]: numericValue,
@@ -34,33 +34,38 @@ const VerifyOTP = () => {
         [name]: value,
       }));
     }
-    
-    setError(''); // Clear error on input change
+
+    setError(""); // Clear error on input change
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-    setSuccessMessage('');
+    setError("");
+    setSuccessMessage("");
 
     // Validation
     if (formData.otp.length !== 6) {
-      setError('OTP must be 6 digits');
+      setError("OTP must be 6 digits");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await axiosInstance.post('/auth/verify-email/', formData);
+      const response = await axiosInstance.post(
+        "/api/auth/verify-email/",
+        formData
+      );
 
       // Show success message
-      setSuccessMessage(response.data.message || 'Email verified successfully!');
+      setSuccessMessage(
+        response.data.message || "Email verified successfully!"
+      );
 
       // Redirect to login page after 2 seconds
       setTimeout(() => {
-        navigate('/login', {
+        navigate("/login", {
           state: { email: formData.email, verified: true },
         });
       }, 2000);
@@ -68,7 +73,7 @@ const VerifyOTP = () => {
       // Handle API errors
       if (err.response?.data) {
         const errorData = err.response.data;
-        
+
         // Handle validation errors
         if (errorData.otp) {
           setError(errorData.otp[0] || errorData.otp);
@@ -77,10 +82,10 @@ const VerifyOTP = () => {
         } else if (errorData.detail) {
           setError(errorData.detail);
         } else {
-          setError('Verification failed. Please try again.');
+          setError("Verification failed. Please try again.");
         }
       } else {
-        setError('Network error. Please check your connection and try again.');
+        setError("Network error. Please check your connection and try again.");
       }
     } finally {
       setLoading(false);
@@ -90,31 +95,31 @@ const VerifyOTP = () => {
   // Handle resend OTP
   const handleResendOTP = async () => {
     if (!formData.email) {
-      setError('Please enter your email address');
+      setError("Please enter your email address");
       return;
     }
 
     setResendLoading(true);
-    setResendMessage('');
-    setError('');
+    setResendMessage("");
+    setError("");
 
     try {
-      const response = await axiosInstance.post('/auth/resend-otp/', {
+      const response = await axiosInstance.post("/auth/resend-otp/", {
         email: formData.email,
       });
 
-      setResendMessage(response.data.message || 'OTP resent successfully!');
-      
+      setResendMessage(response.data.message || "OTP resent successfully!");
+
       // Clear resend message after 5 seconds
       setTimeout(() => {
-        setResendMessage('');
+        setResendMessage("");
       }, 5000);
     } catch (err) {
       if (err.response?.data) {
         const errorData = err.response.data;
-        setError(errorData.error || errorData.detail || 'Failed to resend OTP');
+        setError(errorData.error || errorData.detail || "Failed to resend OTP");
       } else {
-        setError('Network error. Please try again.');
+        setError("Network error. Please try again.");
       }
     } finally {
       setResendLoading(false);
@@ -211,8 +216,8 @@ const VerifyOTP = () => {
             disabled={loading || formData.otp.length !== 6}
             className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
               loading || formData.otp.length !== 6
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700 active:scale-95'
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700 active:scale-95"
             }`}
           >
             {loading ? (
@@ -240,26 +245,24 @@ const VerifyOTP = () => {
                 Verifying...
               </span>
             ) : (
-              'Verify Email'
+              "Verify Email"
             )}
           </button>
         </form>
 
         {/* Resend OTP */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 mb-2">
-            Didn't receive the code?
-          </p>
+          <p className="text-sm text-gray-600 mb-2">Didn't receive the code?</p>
           <button
             onClick={handleResendOTP}
             disabled={resendLoading}
             className={`text-sm font-semibold ${
               resendLoading
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-green-600 hover:text-green-700'
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-green-600 hover:text-green-700"
             }`}
           >
-            {resendLoading ? 'Sending...' : 'Resend OTP'}
+            {resendLoading ? "Sending..." : "Resend OTP"}
           </button>
         </div>
 
