@@ -18,7 +18,7 @@ const MyEvents = () => {
     setError('');
 
     try {
-      const response = await axiosInstance.get('/events/mine/');
+      const response = await axiosInstance.get('/api/events/mine/');
       setEvents(response.data.results || response.data);
     } catch (err) {
       setError('Failed to load your events. Please try again later.');
@@ -43,7 +43,7 @@ const MyEvents = () => {
     setError('');
 
     try {
-      await axiosInstance.delete(`/events/${eventId}/`);
+      await axiosInstance.delete(`/api/events/${eventId}/delete/`);
       
       // Remove event from list
       setEvents((prev) => prev.filter((event) => event.id !== eventId));

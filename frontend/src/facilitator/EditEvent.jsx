@@ -30,7 +30,7 @@ const EditEvent = () => {
     setErrors({});
 
     try {
-      const response = await axiosInstance.get(`/events/${id}/`);
+      const response = await axiosInstance.get(`/api/events/${id}/`);
       const event = response.data;
 
       // Format datetime for datetime-local input
@@ -178,7 +178,7 @@ const EditEvent = () => {
         eventData.capacity = null;
       }
 
-      await axiosInstance.put(`/events/${id}/`, eventData);
+      await axiosInstance.put(`/api/events/${id}/update/`, eventData);
 
       // Show success message
       setSuccessMessage('Event updated successfully!');
@@ -223,7 +223,7 @@ const EditEvent = () => {
     setDeleting(true);
 
     try {
-      await axiosInstance.delete(`/events/${id}/`);
+      await axiosInstance.delete(`/api/events/${id}/delete/`);
       alert('Event deleted successfully!');
       navigate('/my-events');
     } catch (err) {

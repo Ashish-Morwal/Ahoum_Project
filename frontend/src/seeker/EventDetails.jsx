@@ -22,13 +22,13 @@ const EventDetails = () => {
     setError('');
 
     try {
-      const response = await axiosInstance.get(`/events/${id}/`);
+      const response = await axiosInstance.get(`/api/events/${id}/`);
       setEvent(response.data);
 
       // Check if user is already enrolled
       if (isSeeker()) {
         try {
-          const enrollmentsResponse = await axiosInstance.get('/events/enrollments/my-enrollments/');
+          const enrollmentsResponse = await axiosInstance.get('/api/events/enrollments/my-enrollments/');
           const enrolled = enrollmentsResponse.data.results.some(
             (enrollment) => enrollment.event.id === parseInt(id)
           );
@@ -58,11 +58,11 @@ const EventDetails = () => {
     setError('');
 
     try {
-      await axiosInstance.post(`/events/${id}/enroll/`);
+      await axiosInstance.post(`/api/events/${id}/enroll/`);
       setIsEnrolled(true);
       
       // Refresh event data to update enrollment count
-      const response = await axiosInstance.get(`/events/${id}/`);
+      const response = await axiosInstance.get(`/api/events/${id}/`);
       setEvent(response.data);
 
       // Show success message

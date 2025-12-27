@@ -53,7 +53,7 @@ const VerifyOTP = () => {
     }
 
     try {
-      const response = await axiosInstance.post('/auth/verify-email/', formData);
+      const response = await axiosInstance.post('/api/auth/verify-email/', formData);
 
       // Show success message
       setSuccessMessage(response.data.message || 'Email verified successfully!');
@@ -99,7 +99,7 @@ const VerifyOTP = () => {
     setError('');
 
     try {
-      const response = await axiosInstance.post('/auth/resend-otp/', {
+      const response = await axiosInstance.post('/api/auth/resend-otp/', {
         email: formData.email,
       });
 
