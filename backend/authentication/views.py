@@ -43,6 +43,42 @@ def validate_email_format(email):
         return False, 'Invalid email format'
 
 
+def send_otp_email(email, otp):
+    """
+    Send OTP verification email with comprehensive error handling.
+    Returns (success: bool, error_message: str or None)
+    
+    This is a utility function shared by SignupView and ResendOTPView.
+    """
+    subject = 'Email Verification - Events Platform'
+    message = f'''
+    Welcome to Events Platform!
+    
+    Your OTP for email verification is: {otp}
+    
+    This OTP will expire in 10 minutes.
+    Please do not share this code with anyone.
+    
+    If you didn't request this, please ignore this email.
+    '''
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        logger.info(f"OTP email sent successfully to {email}")
+        return True, None
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Failed to send OTP email to {email}: {error_msg}", exc_info=True)
+        # Return user-friendly error message
+        return False, "Email service temporarily unavailable"
+
+
 class SignupView(APIView):
     permission_classes = [AllowAny]
     
@@ -87,7 +123,7 @@ class SignupView(APIView):
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Send OTP email (non-blocking, failure shouldn't prevent signup)
-            email_sent, email_error = self.send_otp_email(user.email, otp)
+            email_sent, email_error = send_otp_email(user.email, otp)
             
             # Get role safely
             try:
@@ -119,39 +155,6 @@ class SignupView(APIView):
             return Response({
                 'error': 'An unexpected error occurred. Please try again later.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def send_otp_email(self, email, otp):
-        """
-        Send OTP verification email with comprehensive error handling.
-        Returns (success: bool, error_message: str or None)
-        """
-        subject = 'Email Verification - Events Platform'
-        message = f'''
-        Welcome to Events Platform!
-        
-        Your OTP for email verification is: {otp}
-        
-        This OTP will expire in 10 minutes.
-        Please do not share this code with anyone.
-        
-        If you didn't request this, please ignore this email.
-        '''
-        
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
-            logger.info(f"OTP email sent successfully to {email}")
-            return True, None
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Failed to send OTP email to {email}: {error_msg}", exc_info=True)
-            # Return user-friendly error message
-            return False, "Email service temporarily unavailable"
 
 
 class VerifyEmailView(APIView):
@@ -343,7 +346,7 @@ class ResendOTPView(APIView):
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Send OTP email (non-blocking, failure shouldn't prevent OTP creation)
-            email_sent, email_error = SignupView().send_otp_email(email, otp_instance.otp)
+            email_sent, email_error = send_otp_email(email, otp_instance.otp)
             
             response_data = {
                 'message': 'OTP resent successfully',
