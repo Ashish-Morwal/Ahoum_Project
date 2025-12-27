@@ -31,7 +31,7 @@ const Signup = () => {
     setSuccessMessage('');
 
     try {
-      const response = await axiosInstance.post('/auth/signup/', formData);
+      const response = await axiosInstance.post('/api/auth/signup/', formData);
 
       // Show success message
       setSuccessMessage(response.data.message || 'Signup successful! Check your email for OTP.');

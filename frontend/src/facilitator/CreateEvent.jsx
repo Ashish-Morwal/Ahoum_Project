@@ -131,7 +131,7 @@ const CreateEvent = () => {
         eventData.capacity = parseInt(formData.capacity);
       }
 
-      const response = await axiosInstance.post('/events/', eventData);
+      const response = await axiosInstance.post('/api/events/', eventData);
 
       // Show success message
       setSuccessMessage('Event created successfully!');

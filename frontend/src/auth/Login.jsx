@@ -42,7 +42,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await axiosInstance.post('/auth/login/', formData);
+      const response = await axiosInstance.post('/api/auth/login/', formData);
 
       const { user, tokens } = response.data;
 

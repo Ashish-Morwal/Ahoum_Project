@@ -48,7 +48,7 @@ const EventList = () => {
         params.language = languageFilter;
       }
 
-      const response = await axiosInstance.get('/events/', { params });
+      const response = await axiosInstance.get('/api/events/', { params });
       
       setEvents(response.data.results);
       setTotalCount(response.data.count);
@@ -107,7 +107,7 @@ const EventList = () => {
     setError('');
 
     try {
-      await axiosInstance.post(`/events/${eventId}/enroll/`);
+      await axiosInstance.post(`/api/events/${eventId}/enroll/`);
       
       // Refresh events to update enrollment status
       fetchEvents(currentPage);

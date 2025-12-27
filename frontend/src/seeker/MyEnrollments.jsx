@@ -16,7 +16,7 @@ const MyEnrollments = () => {
     setError('');
 
     try {
-      const response = await axiosInstance.get('/events/enrollments/my-enrollments/');
+      const response = await axiosInstance.get('/api/events/enrollments/my-enrollments/');
       setEnrollments(response.data.results || response.data);
     } catch (err) {
       setError('Failed to load your enrollments. Please try again later.');
