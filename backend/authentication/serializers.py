@@ -2,9 +2,14 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError, ObjectDoesNotExist
+from django.db import IntegrityError
 from users.models import Profile
 from .models import EmailOTP
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 class SignupSerializer(serializers.Serializer):
@@ -43,29 +48,57 @@ class SignupSerializer(serializers.Serializer):
         """
         Create a new unverified user with username set to email.
         Generate and return OTP for email verification.
+        Production-safe with comprehensive error handling.
         """
         email = validated_data['email']
         password = validated_data['password']
         role = validated_data.get('role', 'seeker')
         
-        # Create user with username = email
-        user = User.objects.create_user(
-            username=email,
-            email=email,
-            password=password,
-            is_active=False  # User is inactive until email is verified
-        )
+        try:
+            # Create user with username = email
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password,
+                is_active=False  # User is inactive until email is verified
+            )
+        except IntegrityError as e:
+            logger.error(f"IntegrityError creating user {email}: {str(e)}")
+            raise serializers.ValidationError({
+                'email': 'A user with this email already exists.'
+            })
+        except Exception as e:
+            logger.error(f"Unexpected error creating user {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred during signup. Please try again.'
+            })
         
         # Update profile with role (Profile is auto-created by signal)
-        user.profile.role = role
-        user.profile.is_verified = False
-        user.profile.save()
+        try:
+            user.profile.role = role
+            user.profile.is_verified = False
+            user.profile.save()
+        except ObjectDoesNotExist:
+            logger.error(f"Profile not found for user {user.id} after creation")
+            # Create profile if it doesn't exist (fallback)
+            try:
+                Profile.objects.create(user=user, role=role, is_verified=False)
+            except Exception as e:
+                logger.error(f"Failed to create profile for user {user.id}: {str(e)}", exc_info=True)
+                # Continue anyway, profile might be created later
+        except Exception as e:
+            logger.error(f"Error updating profile for user {user.id}: {str(e)}", exc_info=True)
+            # Continue anyway, profile has defaults
         
         # Generate OTP for email verification
-        otp_instance = EmailOTP.create_otp(email=email, expiry_minutes=10)
-        
-        # In production, send OTP via email here
-        # send_otp_email(email, otp_instance.otp)
+        try:
+            otp_instance = EmailOTP.create_otp(email=email, expiry_minutes=10)
+        except Exception as e:
+            logger.error(f"Error creating OTP for {email}: {str(e)}", exc_info=True)
+            # User is created, but OTP failed - raise error
+            raise serializers.ValidationError({
+                'error': 'User created but OTP generation failed. Please use Resend OTP.'
+            })
         
         return {
             'user': user,
@@ -88,35 +121,64 @@ class VerifyEmailSerializer(serializers.Serializer):
     
     def validate(self, data):
         """Validate OTP for the given email"""
-        email = data.get('email').lower()
-        otp = data.get('otp')
+        email = data.get('email', '').lower()
+        otp = data.get('otp', '')
         
         # Check if user exists
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
+            logger.warning(f"Email verification failed: User not found for {email}")
             raise serializers.ValidationError({
                 'email': 'No user found with this email address.'
             })
+        except Exception as e:
+            logger.error(f"Database error fetching user for {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred. Please try again.'
+            })
         
         # Check if user is already verified
-        if user.profile.is_verified:
-            raise serializers.ValidationError({
-                'email': 'Email is already verified. Please login.'
-            })
+        try:
+            if user.profile.is_verified:
+                logger.info(f"Email verification attempted for already verified user: {email}")
+                raise serializers.ValidationError({
+                    'email': 'Email is already verified. Please login.'
+                })
+        except ObjectDoesNotExist:
+            logger.error(f"Profile not found for user {user.id}")
+            # Continue anyway, we'll verify the OTP and create profile if needed
+        except serializers.ValidationError:
+            raise  # Re-raise validation errors
+        except Exception as e:
+            logger.error(f"Error checking verification status for {email}: {str(e)}", exc_info=True)
+            # Continue anyway
         
         # Get the most recent OTP for this email
         try:
             otp_instance = EmailOTP.objects.filter(email=email).latest('created_at')
         except EmailOTP.DoesNotExist:
+            logger.warning(f"No OTP found for {email}")
             raise serializers.ValidationError({
                 'otp': 'No OTP found for this email. Please request a new one.'
             })
+        except Exception as e:
+            logger.error(f"Database error fetching OTP for {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred. Please try again.'
+            })
         
         # Validate OTP using the model method
-        is_valid, message = otp_instance.is_valid(otp)
+        try:
+            is_valid, message = otp_instance.is_valid(otp)
+        except Exception as e:
+            logger.error(f"Error validating OTP for {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred during validation. Please try again.'
+            })
         
         if not is_valid:
+            logger.warning(f"Invalid OTP for {email}: {message}")
             raise serializers.ValidationError({
                 'otp': message
             })
@@ -132,16 +194,37 @@ class VerifyEmailSerializer(serializers.Serializer):
         user = self.validated_data['user']
         otp_instance = self.validated_data['otp_instance']
         
-        # Activate user account
-        user.is_active = True
-        user.save()
+        try:
+            # Activate user account
+            user.is_active = True
+            user.save()
+        except Exception as e:
+            logger.error(f"Error activating user {user.id}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'Failed to activate account. Please try again.'
+            })
         
-        # Mark profile as verified
-        user.profile.is_verified = True
-        user.profile.save()
+        try:
+            # Mark profile as verified
+            user.profile.is_verified = True
+            user.profile.save()
+        except ObjectDoesNotExist:
+            logger.error(f"Profile not found for user {user.id} during verification")
+            # Create profile if it doesn't exist
+            try:
+                Profile.objects.create(user=user, is_verified=True)
+            except Exception as e:
+                logger.error(f"Failed to create profile for user {user.id}: {str(e)}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error updating profile for user {user.id}: {str(e)}", exc_info=True)
+            # Continue anyway, user is activated
         
-        # Delete the used OTP
-        otp_instance.delete()
+        try:
+            # Delete the used OTP
+            otp_instance.delete()
+        except Exception as e:
+            logger.error(f"Error deleting OTP for {user.email}: {str(e)}", exc_info=True)
+            # Continue anyway, OTP will expire naturally
         
         return user
 
@@ -160,35 +243,63 @@ class LoginSerializer(serializers.Serializer):
     
     def validate(self, data):
         """Validate user credentials and verification status"""
-        email = data.get('email').lower()
-        password = data.get('password')
+        email = data.get('email', '').lower()
+        password = data.get('password', '')
         
         # Check if user exists
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
+            logger.warning(f"Login failed: User not found for {email}")
             raise serializers.ValidationError({
                 'email': 'Invalid email or password.'
+            })
+        except Exception as e:
+            logger.error(f"Database error fetching user for {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred. Please try again.'
             })
         
         # Block login if user is not verified
-        if not user.profile.is_verified:
+        try:
+            if not user.profile.is_verified:
+                logger.warning(f"Login blocked for unverified user: {email}")
+                raise serializers.ValidationError({
+                    'email': 'Email not verified. Please verify your email before logging in.'
+                })
+        except ObjectDoesNotExist:
+            logger.error(f"Profile not found for user {user.id}")
             raise serializers.ValidationError({
-                'email': 'Email not verified. Please verify your email before logging in.'
+                'error': 'User profile not found. Please contact support.'
+            })
+        except serializers.ValidationError:
+            raise  # Re-raise validation errors
+        except Exception as e:
+            logger.error(f"Error checking verification status for {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred. Please try again.'
             })
         
         # Authenticate user
-        user = authenticate(username=email, password=password)
+        try:
+            authenticated_user = authenticate(username=email, password=password)
+        except Exception as e:
+            logger.error(f"Authentication error for {email}: {str(e)}", exc_info=True)
+            raise serializers.ValidationError({
+                'error': 'An error occurred during authentication. Please try again.'
+            })
         
-        if user is None:
+        if authenticated_user is None:
+            logger.warning(f"Authentication failed for {email}")
             raise serializers.ValidationError({
                 'email': 'Invalid email or password.'
             })
         
-        if not user.is_active:
+        if not authenticated_user.is_active:
+            logger.warning(f"Login attempted for inactive user: {email}")
             raise serializers.ValidationError({
                 'email': 'Account is inactive. Please contact support.'
             })
         
-        data['user'] = user
+        data['user'] = authenticated_user
         return data
