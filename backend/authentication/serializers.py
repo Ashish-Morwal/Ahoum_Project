@@ -31,9 +31,11 @@ class SignupSerializer(serializers.Serializer):
     )
     
     def validate_email(self, value):
-        """Check if email is already registered"""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
+        """
+        Normalize email address.
+        Note: Duplicate email check is handled by IntegrityError in create()
+        to ensure consistency with database constraints.
+        """
         return value.lower()
     
     def validate_password(self, value):
@@ -82,9 +84,11 @@ class SignupSerializer(serializers.Serializer):
             logger.error(f"Profile not found for user {user.id} after creation")
             # Fallback: Create profile if signal didn't create it
             # This handles edge cases like signal failures or race conditions
-            # TODO: Investigate if this happens frequently and fix root cause
+            # MONITORING: Track occurrences in production logs to identify root cause
+            # TODO: File issue if this happens frequently - may indicate signal problems
             try:
                 Profile.objects.create(user=user, role=role, is_verified=False)
+                logger.warning(f"Profile created via fallback for user {user.id}")
             except Exception as e:
                 logger.error(f"Failed to create profile for user {user.id}: {str(e)}", exc_info=True)
                 # Continue anyway, profile might be created later

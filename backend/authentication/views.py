@@ -3,11 +3,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.mail import send_mail
 from django.conf import settings
 from django.db import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
 from django.core.validators import EmailValidator
+from django.contrib.auth.models import User
 from .serializers import SignupSerializer, VerifyEmailSerializer, LoginSerializer
 from .models import EmailOTP
 import logging
@@ -59,6 +61,11 @@ class SignupView(APIView):
             # Save user and generate OTP
             try:
                 result = serializer.save()
+            except DRFValidationError as e:
+                # Serializer raised a validation error (e.g., duplicate email from IntegrityError)
+                logger.warning(f"Validation error during user creation: {e.detail}")
+                # Return the error details from the serializer
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             except IntegrityError as e:
                 logger.error(f"Database IntegrityError during signup: {str(e)}")
                 return Response({
@@ -165,6 +172,10 @@ class VerifyEmailView(APIView):
             # Save (mark user as verified)
             try:
                 user = serializer.save()
+            except DRFValidationError as e:
+                # Serializer raised a validation error
+                logger.warning(f"Validation error during verification: {e.detail}")
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             except IntegrityError as e:
                 logger.error(f"Database IntegrityError during email verification: {str(e)}")
                 return Response({
@@ -289,8 +300,6 @@ class ResendOTPView(APIView):
                 return Response({
                     'error': error_msg
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            from django.contrib.auth.models import User
             
             # Check if user exists
             try:

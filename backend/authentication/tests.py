@@ -282,8 +282,9 @@ class IntegrityErrorTestCase(TestCase):
         }
         response = self.client.post(self.signup_url, payload, format='json')
         # Should return 400, not 500
-        self.assertIn(response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_500_INTERNAL_SERVER_ERROR])
-        self.assertIn('error', response.data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Error should be in response (either 'error' or 'email' field)
+        self.assertTrue('error' in response.data or 'email' in response.data)
 
 
 class ProfileAccessTestCase(TestCase):
