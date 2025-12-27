@@ -104,7 +104,7 @@ const VerifyOTP = () => {
     setError("");
 
     try {
-      const response = await axiosInstance.post("/auth/resend-otp/", {
+      const response = await axiosInstance.post("/api/auth/resend-otp/", {
         email: formData.email,
       });
 
