@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -20,10 +20,12 @@ class SignupViewTestCase(TestCase):
             'role': 'seeker'
         }
 
+    @override_settings(DEBUG=True)
     def test_signup_with_email_failure_returns_201(self):
         """
         Test that signup still returns 201 when email sending fails,
         instead of 500 error (which was causing 502 Bad Gateway).
+        OTP is only included in response when DEBUG=True.
         """
         # Mock send_otp_email to simulate email failure
         with patch('authentication.views.send_otp_email') as mock_send:
@@ -38,15 +40,36 @@ class SignupViewTestCase(TestCase):
             # Should return 201 (created) not 500
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             
-            # Response should contain warning and OTP
+            # Response should contain warning
             self.assertIn('warning', response.data)
-            self.assertIn('otp', response.data)
             self.assertIn('message', response.data)
+            
+            # OTP should be in response only in DEBUG mode
+            self.assertIn('otp', response.data)
             
             # User should still be created
             self.assertTrue(
                 User.objects.filter(email='test@example.com').exists()
             )
+
+    @override_settings(DEBUG=False)
+    def test_signup_with_email_failure_in_production_hides_otp(self):
+        """
+        Test that OTP is not exposed in production when email fails.
+        """
+        with patch('authentication.views.send_otp_email') as mock_send:
+            mock_send.return_value = (False, "Email service not configured")
+            
+            response = self.client.post(
+                self.signup_url,
+                self.valid_payload,
+                format='json'
+            )
+            
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertIn('warning', response.data)
+            # OTP should NOT be in response in production
+            self.assertNotIn('otp', response.data)
 
     def test_signup_with_successful_email_returns_201(self):
         """
@@ -87,10 +110,11 @@ class ResendOTPViewTestCase(TestCase):
         self.user.profile.is_verified = False
         self.user.profile.save()
 
+    @override_settings(DEBUG=True)
     def test_resend_otp_with_email_failure_returns_200(self):
         """
         Test that resend OTP returns 200 when email sending fails,
-        instead of 500 error.
+        instead of 500 error. OTP is included in DEBUG mode only.
         """
         with patch('authentication.views.send_otp_email') as mock_send:
             mock_send.return_value = (False, "Email service not configured")
@@ -104,7 +128,7 @@ class ResendOTPViewTestCase(TestCase):
             # Should return 200 not 500
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             
-            # Response should contain warning and OTP
+            # Response should contain warning and OTP (in DEBUG mode)
             self.assertIn('warning', response.data)
             self.assertIn('otp', response.data)
 
@@ -114,28 +138,15 @@ class EmailOTPHelperTestCase(TestCase):
     Test cases for send_otp_email helper function.
     """
 
+    @override_settings(EMAIL_HOST_USER="", EMAIL_HOST_PASSWORD="")
     def test_send_otp_email_detects_missing_credentials(self):
         """
         Test that send_otp_email properly detects missing email credentials.
         """
         from authentication.views import send_otp_email
-        from django.conf import settings
         
-        # Save original values
-        original_user = settings.EMAIL_HOST_USER
-        original_password = settings.EMAIL_HOST_PASSWORD
+        success, error_msg = send_otp_email('test@example.com', '123456')
         
-        try:
-            # Set to empty to simulate missing credentials
-            settings.EMAIL_HOST_USER = ""
-            settings.EMAIL_HOST_PASSWORD = ""
-            
-            success, error_msg = send_otp_email('test@example.com', '123456')
-            
-            self.assertFalse(success)
-            self.assertIsNotNone(error_msg)
-            self.assertIn('not configured', error_msg)
-        finally:
-            # Restore original values
-            settings.EMAIL_HOST_USER = original_user
-            settings.EMAIL_HOST_PASSWORD = original_password
+        self.assertFalse(success)
+        self.assertIsNotNone(error_msg)
+        self.assertIn('not configured', error_msg)

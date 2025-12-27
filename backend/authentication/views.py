@@ -70,21 +70,24 @@ class SignupView(APIView):
         email_sent, error_msg = send_otp_email(user.email, otp)
 
         if not email_sent:
-            # Still return success but inform user about email issue
-            return Response(
-                {
-                    "message": "Account created successfully!",
-                    "email": user.email,
-                    "role": user.profile.role,
-                    "warning": (
-                        "However, we could not send the OTP email at this time. "
-                        f"Your OTP is: {otp}. Please use this to verify your account. "
-                        "This is temporary - please contact support if email issues persist."
-                    ),
-                    "otp": otp,  # Include OTP in response as fallback
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            # In production, don't expose OTP in response for security
+            # Only provide it in DEBUG mode for development/testing
+            response_data = {
+                "message": "Account created successfully!",
+                "email": user.email,
+                "role": user.profile.role,
+                "warning": (
+                    "However, we could not send the OTP email at this time. "
+                    "Please contact support or try resending the OTP."
+                ),
+            }
+            
+            # Only include OTP in DEBUG mode (development)
+            if settings.DEBUG:
+                response_data["otp"] = otp
+                response_data["warning"] += f" (DEBUG: Your OTP is {otp})"
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         return Response(
             {
@@ -188,20 +191,22 @@ class ResendOTPView(APIView):
         email_sent, error_msg = send_otp_email(email, otp_instance.otp)
 
         if not email_sent:
-            # Return success with OTP in response as fallback
-            return Response(
-                {
-                    "message": "OTP generated successfully",
-                    "email": email,
-                    "warning": (
-                        "However, we could not send the OTP email at this time. "
-                        f"Your OTP is: {otp_instance.otp}. "
-                        "Please contact support if email issues persist."
-                    ),
-                    "otp": otp_instance.otp,  # Include OTP in response as fallback
-                },
-                status=status.HTTP_200_OK,
-            )
+            # In production, don't expose OTP in response for security
+            response_data = {
+                "message": "OTP generated successfully",
+                "email": email,
+                "warning": (
+                    "However, we could not send the OTP email at this time. "
+                    "Please contact support or try again later."
+                ),
+            }
+            
+            # Only include OTP in DEBUG mode (development)
+            if settings.DEBUG:
+                response_data["otp"] = otp_instance.otp
+                response_data["warning"] += f" (DEBUG: Your OTP is {otp_instance.otp})"
+            
+            return Response(response_data, status=status.HTTP_200_OK)
 
         return Response(
             {
