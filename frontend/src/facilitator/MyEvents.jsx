@@ -43,7 +43,7 @@ const MyEvents = () => {
     setError('');
 
     try {
-      await axiosInstance.delete(`/api/events/${eventId}/`);
+      await axiosInstance.delete(`/api/events/${eventId}/delete/`);
       
       // Remove event from list
       setEvents((prev) => prev.filter((event) => event.id !== eventId));
