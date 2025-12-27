@@ -44,6 +44,7 @@ def send_otp_email(email, otp):
 # --------------------------------------------------
 class SignupView(APIView):
     permission_classes = [AllowAny]
+    http_method_names = ['post', 'options']  # Explicitly allow only POST and OPTIONS
 
     def post(self, request):
         serializer = SignupSerializer(data=request.data)

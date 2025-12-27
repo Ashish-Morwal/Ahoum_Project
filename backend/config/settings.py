@@ -149,18 +149,23 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
-# CORS (THIS FIXES YOUR CURRENT ERROR)
+# CORS CONFIGURATION
+# Properly configured for production deployment on Render
 
 CORS_ALLOWED_ORIGINS = [
+    # Local development
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
+    # Production frontend on Render
     "https://frontend-mbf2.onrender.com",
 ]
 
+# Allow credentials (cookies, authorization headers, etc.)
 CORS_ALLOW_CREDENTIALS = True
 
+# Explicitly allow necessary headers for CORS requests
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -173,17 +178,20 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
+# Explicitly allow HTTP methods (OPTIONS required for preflight)
 CORS_ALLOW_METHODS = [
     "DELETE",
     "GET",
-    "OPTIONS",
+    "OPTIONS",  # Required for CORS preflight requests
     "PATCH",
     "POST",
     "PUT",
 ]
 
+# CSRF trusted origins for production
 CSRF_TRUSTED_ORIGINS = [
     "https://frontend-mbf2.onrender.com",
+    "https://backend-django-cnyh.onrender.com",
 ]
 
 # EMAIL (OTP)
