@@ -80,7 +80,9 @@ class SignupSerializer(serializers.Serializer):
             user.profile.save()
         except ObjectDoesNotExist:
             logger.error(f"Profile not found for user {user.id} after creation")
-            # Create profile if it doesn't exist (fallback)
+            # Fallback: Create profile if signal didn't create it
+            # This handles edge cases like signal failures or race conditions
+            # TODO: Investigate if this happens frequently and fix root cause
             try:
                 Profile.objects.create(user=user, role=role, is_verified=False)
             except Exception as e:

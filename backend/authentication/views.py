@@ -6,13 +6,39 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
 from django.db import IntegrityError
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from .serializers import SignupSerializer, VerifyEmailSerializer, LoginSerializer
 from .models import EmailOTP
 import logging
 
 # Set up logger for production-ready logging
 logger = logging.getLogger(__name__)
+
+# Email validator instance
+email_validator = EmailValidator()
+
+
+def normalize_email(email):
+    """
+    Normalize email address by stripping whitespace and converting to lowercase.
+    Returns normalized email string.
+    """
+    if not email:
+        return ''
+    return email.strip().lower()
+
+
+def validate_email_format(email):
+    """
+    Validate email format using Django's EmailValidator.
+    Returns (is_valid: bool, error_message: str or None)
+    """
+    try:
+        email_validator(email)
+        return True, None
+    except DjangoValidationError:
+        return False, 'Invalid email format'
 
 
 class SignupView(APIView):
@@ -66,9 +92,12 @@ class SignupView(APIView):
             response_data = {
                 'message': 'Signup successful. Please check your email for OTP verification.',
                 'email': user.email,
-                'otp': otp,  # Include OTP in response for development/testing
                 'role': user_role
             }
+            
+            # Include OTP in response only in development (for testing)
+            if settings.DEBUG:
+                response_data['otp'] = otp
             
             # Add warning if email failed
             if not email_sent:
@@ -244,7 +273,7 @@ class ResendOTPView(APIView):
         """
         try:
             # Safely get email from request data
-            email = request.data.get('email', '').strip().lower()
+            email = normalize_email(request.data.get('email', ''))
             
             # Validate email is provided
             if not email:
@@ -253,11 +282,12 @@ class ResendOTPView(APIView):
                     'error': 'Email is required'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Basic email format validation
-            if '@' not in email or '.' not in email:
+            # Validate email format using Django's EmailValidator
+            is_valid, error_msg = validate_email_format(email)
+            if not is_valid:
                 logger.warning(f"ResendOTP: Invalid email format: {email}")
                 return Response({
-                    'error': 'Invalid email format'
+                    'error': error_msg
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             from django.contrib.auth.models import User
@@ -308,9 +338,12 @@ class ResendOTPView(APIView):
             
             response_data = {
                 'message': 'OTP resent successfully',
-                'email': email,
-                'otp': otp_instance.otp  # Include OTP in response for development/testing
+                'email': email
             }
+            
+            # Include OTP in response only in development (for testing)
+            if settings.DEBUG:
+                response_data['otp'] = otp_instance.otp
             
             # Add warning if email failed
             if not email_sent:

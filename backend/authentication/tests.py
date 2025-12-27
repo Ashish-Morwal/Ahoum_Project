@@ -25,8 +25,9 @@ class SignupViewTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('message', response.data)
         self.assertIn('email', response.data)
-        self.assertIn('otp', response.data)
         self.assertEqual(response.data['email'], 'test@example.com')
+        # OTP is only returned in DEBUG mode
+        # In production (DEBUG=False), OTP is not exposed in response
     
     def test_signup_with_missing_email(self):
         """Test signup without email returns 400"""
@@ -221,7 +222,8 @@ class ResendOTPViewTestCase(TestCase):
         response = self.client.post(self.resend_url, payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('message', response.data)
-        self.assertIn('otp', response.data)
+        # OTP is only returned in DEBUG mode
+        # In production (DEBUG=False), OTP is not exposed in response
     
     def test_resend_otp_without_email(self):
         """Test resend OTP without email returns 400"""
