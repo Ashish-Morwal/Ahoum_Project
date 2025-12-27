@@ -16,6 +16,10 @@ from .models import EmailOTP
 # HELPER FUNCTION (reusable & safe)
 # --------------------------------------------------
 def send_otp_email(email, otp):
+    """
+    Send OTP email to user for verification.
+    Returns (success: bool, error_message: str or None)
+    """
     subject = "Email Verification - Events Platform"
     message = (
         "Welcome to Events Platform!\n\n"
@@ -25,6 +29,14 @@ def send_otp_email(email, otp):
     )
 
     try:
+        # Check if email is configured
+        # Check for None or empty string explicitly
+        if settings.EMAIL_HOST_USER is None or settings.EMAIL_HOST_USER == "" or \
+           settings.EMAIL_HOST_PASSWORD is None or settings.EMAIL_HOST_PASSWORD == "":
+            error_msg = "Email service not configured. Please contact administrator."
+            print(f"EMAIL CONFIG ERROR: {error_msg}")
+            return False, error_msg
+        
         send_mail(
             subject=subject,
             message=message,
@@ -32,11 +44,13 @@ def send_otp_email(email, otp):
             recipient_list=[email],
             fail_silently=False,
         )
-        return True
+        print(f"EMAIL SENT SUCCESSFULLY to {email}")
+        return True, None
     except Exception as e:
-        # VERY IMPORTANT: Log for Render
-        print("EMAIL SEND FAILED:", str(e))
-        return False
+        # VERY IMPORTANT: Log for debugging
+        error_msg = str(e)
+        print(f"EMAIL SEND FAILED to {email}: {error_msg}")
+        return False, error_msg
 
 
 # --------------------------------------------------
@@ -55,18 +69,28 @@ class SignupView(APIView):
         user = result["user"]
         otp = result["otp"]
 
-        email_sent = send_otp_email(user.email, otp)
+        email_sent, error_msg = send_otp_email(user.email, otp)
 
         if not email_sent:
-            return Response(
-                {
-                    "detail": (
-                        "Account created, but we could not send the OTP email. "
-                        "Please try again later."
-                    )
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            # In production, don't expose OTP in response for security
+            # Only provide it in DEBUG mode for development/testing
+            response_data = {
+                "message": "Account created successfully!",
+                "email": user.email,
+                "role": user.profile.role,
+                "warning": (
+                    "However, we could not send the OTP email at this time. "
+                    "Please contact support or try resending the OTP."
+                ),
+            }
+            
+            # Only include OTP in DEBUG mode (development)
+            # Use separate field to avoid logging sensitive data
+            if settings.DEBUG:
+                response_data["otp"] = otp
+                response_data["debug_info"] = f"Your OTP is {otp}"
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         return Response(
             {
@@ -167,18 +191,26 @@ class ResendOTPView(APIView):
 
         otp_instance = EmailOTP.create_otp(email=email, expiry_minutes=10)
 
-        email_sent = send_otp_email(email, otp_instance.otp)
+        email_sent, error_msg = send_otp_email(email, otp_instance.otp)
 
         if not email_sent:
-            return Response(
-                {
-                    "detail": (
-                        "OTP generated but email could not be sent. "
-                        "Please try again later."
-                    )
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            # In production, don't expose OTP in response for security
+            response_data = {
+                "message": "OTP generated successfully",
+                "email": email,
+                "warning": (
+                    "However, we could not send the OTP email at this time. "
+                    "Please contact support or try again later."
+                ),
+            }
+            
+            # Only include OTP in DEBUG mode (development)
+            # Use separate field to avoid logging sensitive data
+            if settings.DEBUG:
+                response_data["otp"] = otp_instance.otp
+                response_data["debug_info"] = f"Your OTP is {otp_instance.otp}"
+            
+            return Response(response_data, status=status.HTTP_200_OK)
 
         return Response(
             {
